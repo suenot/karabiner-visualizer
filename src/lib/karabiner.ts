@@ -43,24 +43,31 @@ export type RuleFile = {
   fileName: string;
   title: string;
   rules: Rule[];
+  /** Original JSON source as text for code viewer. */
+  raw: string;
 };
 
 type RawRuleSet = { title?: string; rules?: Rule[] };
 type RawSingle = { description?: string; manipulators?: Manipulator[] };
 
-export function normalizeRuleFile(fileName: string, raw: unknown): RuleFile {
+export function normalizeRuleFile(
+  fileName: string,
+  parsed: unknown,
+  rawText: string,
+): RuleFile {
   const baseTitle = fileName.replace(/\.json$/, "");
 
-  if (raw && typeof raw === "object") {
-    const ruleSet = raw as RawRuleSet;
+  if (parsed && typeof parsed === "object") {
+    const ruleSet = parsed as RawRuleSet;
     if (Array.isArray(ruleSet.rules)) {
       return {
         fileName,
         title: ruleSet.title || baseTitle,
         rules: ruleSet.rules.filter((r) => r && r.manipulators),
+        raw: rawText,
       };
     }
-    const single = raw as RawSingle;
+    const single = parsed as RawSingle;
     if (Array.isArray(single.manipulators)) {
       return {
         fileName,
@@ -71,10 +78,11 @@ export function normalizeRuleFile(fileName: string, raw: unknown): RuleFile {
             manipulators: single.manipulators,
           },
         ],
+        raw: rawText,
       };
     }
   }
-  return { fileName, title: baseTitle, rules: [] };
+  return { fileName, title: baseTitle, rules: [], raw: rawText };
 }
 
 export function extractModifiers(spec: ToSpec | FromSpec): {

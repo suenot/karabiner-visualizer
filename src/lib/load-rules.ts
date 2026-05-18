@@ -18,10 +18,10 @@ export async function loadRuleFiles(): Promise<RuleFile[]> {
     const full = path.join(RULES_DIR, name);
     try {
       const txt = await fs.readFile(full, "utf8");
-      const raw = JSON.parse(txt);
-      out.push(normalizeRuleFile(name, raw));
+      const parsed = JSON.parse(txt);
+      out.push(normalizeRuleFile(name, parsed, txt));
     } catch {
-      out.push({ fileName: name, title: name, rules: [] });
+      out.push({ fileName: name, title: name, rules: [], raw: "" });
     }
   }
   return out;

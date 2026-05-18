@@ -4,8 +4,9 @@ import { useMemo, useState } from "react";
 import type { Manipulator, RuleFile } from "@/lib/karabiner";
 import { fromMods, modKey, modLabel, formatTo } from "@/lib/format";
 import { pickVariant } from "@/lib/keyboard-layout";
-import { notesFor } from "@/lib/descriptions";
+import { notesFor, statusOf } from "@/lib/descriptions";
 import { Keyboard, type Bindings } from "./Keyboard";
+import { JsonViewer } from "./JsonViewer";
 
 const GITHUB_RAW =
   "https://raw.githubusercontent.com/suenot/karabiner/master";
@@ -65,7 +66,13 @@ function collectCodes(file: RuleFile): Set<string> {
 
 export function RuleViewer({ files }: { files: RuleFile[] }) {
   const nonEmpty = useMemo(() => files.filter((f) => f.rules.length > 0), [files]);
-  const [activeFile, setActiveFile] = useState(0);
+  const defaultFileIdx = useMemo(() => {
+    const firstActive = nonEmpty.findIndex(
+      (f) => statusOf(f.fileName) === "active",
+    );
+    return firstActive >= 0 ? firstActive : 0;
+  }, [nonEmpty]);
+  const [activeFile, setActiveFile] = useState(defaultFileIdx);
   const [activeLayer, setActiveLayer] = useState(0);
 
   const file = nonEmpty[Math.min(activeFile, Math.max(0, nonEmpty.length - 1))];
@@ -91,27 +98,48 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* File tabs */}
-      <div className="flex flex-wrap gap-1.5">
-        {nonEmpty.map((f, i) => (
-          <button
-            key={f.fileName}
-            onClick={() => {
-              setActiveFile(i);
-              setActiveLayer(0);
-            }}
-            className={`px-3 py-1.5 rounded-md text-xs font-mono transition ${
-              i === activeFile
-                ? "bg-zinc-100 text-zinc-900"
-                : "bg-zinc-900 text-zinc-300 hover:bg-zinc-800"
-            }`}
-            title={f.fileName}
-          >
-            {f.title}
-            <span className="ml-1.5 opacity-60">{f.rules.length}</span>
-          </button>
-        ))}
-      </div>
+      {/* File tabs, grouped by status */}
+      {(["active", "experimental"] as const).map((group) => {
+        const items = nonEmpty
+          .map((f, i) => ({ f, i }))
+          .filter(({ f }) => statusOf(f.fileName) === group);
+        if (items.length === 0) return null;
+        const groupLabel =
+          group === "active" ? "Я использую" : "Экспериментальные";
+        return (
+          <div key={group} className="flex flex-col gap-1.5">
+            <span
+              className={`text-[10px] uppercase tracking-wider font-semibold ${
+                group === "active" ? "text-emerald-400" : "text-zinc-500"
+              }`}
+            >
+              {groupLabel}
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {items.map(({ f, i }) => (
+                <button
+                  key={f.fileName}
+                  onClick={() => {
+                    setActiveFile(i);
+                    setActiveLayer(0);
+                  }}
+                  className={`px-3 py-1.5 rounded-md text-xs font-mono transition ring-1 ${
+                    i === activeFile
+                      ? "bg-zinc-100 text-zinc-900 ring-zinc-200"
+                      : group === "active"
+                        ? "bg-zinc-900 text-zinc-200 ring-emerald-700/40 hover:bg-zinc-800"
+                        : "bg-zinc-900/60 text-zinc-400 ring-zinc-800 hover:bg-zinc-800 hover:text-zinc-200"
+                  }`}
+                  title={f.fileName}
+                >
+                  {f.title}
+                  <span className="ml-1.5 opacity-60">{f.rules.length}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        );
+      })}
 
       {/* File header: title + description + download */}
       <div className="rounded-xl ring-1 ring-zinc-800 bg-zinc-950/40 p-4 flex flex-col gap-3">
@@ -121,6 +149,22 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
               <h2 className="text-lg font-semibold text-zinc-100">
                 {notes?.headline ?? file.title}
               </h2>
+              <span
+                className={`text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded ring-1 ${
+                  statusOf(file.fileName) === "active"
+                    ? "ring-emerald-500/40 text-emerald-300 bg-emerald-900/30"
+                    : "ring-zinc-700 text-zinc-400 bg-zinc-900"
+                }`}
+                title={
+                  statusOf(file.fileName) === "active"
+                    ? "Я использую"
+                    : "Экспериментальный — может работать не идеально"
+                }
+              >
+                {statusOf(file.fileName) === "active"
+                  ? "я использую"
+                  : "экспериментальный"}
+              </span>
               <span className="text-xs font-mono text-zinc-500 bg-zinc-900 ring-1 ring-zinc-800 px-2 py-0.5 rounded">
                 {file.fileName}
               </span>
@@ -214,10 +258,10 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
         </div>
       </div>
 
-      {/* Rule list (textual) */}
+      {/* Raw rules: textual summary + JSON source */}
       <details className="rounded-xl ring-1 ring-zinc-800 bg-zinc-950/40">
         <summary className="cursor-pointer select-none px-4 py-2 text-xs uppercase tracking-wide text-zinc-400 font-semibold hover:text-zinc-200">
-          Raw rules in {file.fileName} ({file.rules.length})
+          Rule summary ({file.rules.length})
         </summary>
         <ul className="p-4 pt-1 flex flex-col gap-2">
           {file.rules.map((r, i) => (
@@ -251,6 +295,9 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
           ))}
         </ul>
       </details>
+
+      {/* JSON source viewer */}
+      {file.raw && <JsonViewer source={file.raw} fileName={file.fileName} />}
     </div>
   );
 }
