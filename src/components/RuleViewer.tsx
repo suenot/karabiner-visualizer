@@ -3,7 +3,13 @@
 import { useMemo, useState } from "react";
 import type { Manipulator, RuleFile } from "@/lib/karabiner";
 import { fromMods, modKey, modLabel, formatTo } from "@/lib/format";
+import { pickVariant } from "@/lib/keyboard-layout";
+import { notesFor } from "@/lib/descriptions";
 import { Keyboard, type Bindings } from "./Keyboard";
+
+const GITHUB_RAW =
+  "https://raw.githubusercontent.com/suenot/karabiner/master";
+const GITHUB_BLOB = "https://github.com/suenot/karabiner/blob/master";
 
 type Layer = {
   key: string;
@@ -30,7 +36,6 @@ function buildLayers(file: RuleFile): Layer[] {
       groups.get(k)!.manipulators.push(m);
     }
   }
-  // sort: no-mod first, then by label
   return [...groups.values()].sort((a, b) => {
     if (a.key === "_none") return -1;
     if (b.key === "_none") return 1;
@@ -42,10 +47,20 @@ function bindingsForLayer(layer: Layer): Bindings {
   const out: Bindings = {};
   for (const m of layer.manipulators) {
     const code = m.from.key_code!;
-    const to = formatTo(m.to);
-    out[code] = to;
+    out[code] = formatTo(m.to);
   }
   return out;
+}
+
+function collectCodes(file: RuleFile): Set<string> {
+  const s = new Set<string>();
+  for (const r of file.rules) {
+    for (const m of r.manipulators) {
+      if (m.from?.key_code) s.add(m.from.key_code);
+      for (const t of m.to ?? []) if (t.key_code) s.add(t.key_code);
+    }
+  }
+  return s;
 }
 
 export function RuleViewer({ files }: { files: RuleFile[] }) {
@@ -57,6 +72,11 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
   const layers = useMemo(() => (file ? buildLayers(file) : []), [file]);
   const layer = layers[Math.min(activeLayer, Math.max(0, layers.length - 1))];
   const bindings = useMemo(() => (layer ? bindingsForLayer(layer) : {}), [layer]);
+  const variant = useMemo(
+    () => (file ? pickVariant(collectCodes(file)) : "ansi"),
+    [file],
+  );
+  const notes = file ? notesFor(file.fileName) : undefined;
 
   if (nonEmpty.length === 0 || !file || !layer) {
     return (
@@ -65,6 +85,9 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
       </div>
     );
   }
+
+  const rawUrl = `${GITHUB_RAW}/${file.fileName}`;
+  const blobUrl = `${GITHUB_BLOB}/${file.fileName}`;
 
   return (
     <div className="flex flex-col gap-5">
@@ -88,6 +111,59 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
             <span className="ml-1.5 opacity-60">{f.rules.length}</span>
           </button>
         ))}
+      </div>
+
+      {/* File header: title + description + download */}
+      <div className="rounded-xl ring-1 ring-zinc-800 bg-zinc-950/40 p-4 flex flex-col gap-3">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-lg font-semibold text-zinc-100">
+                {notes?.headline ?? file.title}
+              </h2>
+              <span className="text-xs font-mono text-zinc-500 bg-zinc-900 ring-1 ring-zinc-800 px-2 py-0.5 rounded">
+                {file.fileName}
+              </span>
+              <span
+                className={`text-xs font-mono px-2 py-0.5 rounded ring-1 ${
+                  variant === "iso"
+                    ? "ring-amber-600/40 text-amber-300 bg-amber-900/30"
+                    : "ring-zinc-700 text-zinc-400 bg-zinc-900"
+                }`}
+                title={
+                  variant === "iso"
+                    ? "ISO layout (uses non_us_backslash)"
+                    : "ANSI layout"
+                }
+              >
+                {variant.toUpperCase()}
+              </span>
+            </div>
+            {notes?.body && (
+              <p className="mt-2 text-sm text-zinc-300 leading-relaxed max-w-3xl">
+                {notes.body}
+              </p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <a
+              href={blobUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-zinc-400 hover:text-zinc-100 underline decoration-zinc-700 px-2 py-1"
+            >
+              view on GitHub ↗
+            </a>
+            <a
+              href={rawUrl}
+              download={file.fileName}
+              className="text-xs font-medium px-3 py-1.5 rounded-md bg-emerald-600 hover:bg-emerald-500 text-white transition"
+              title={`Download ${file.fileName}`}
+            >
+              ⬇ Download JSON
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* Layer (modifier) tabs */}
@@ -115,7 +191,11 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
 
       {/* Keyboard */}
       <div className="rounded-2xl bg-zinc-950/60 ring-1 ring-zinc-800 p-5">
-        <Keyboard bindings={bindings} activeModifiers={layer?.modifiers ?? []} />
+        <Keyboard
+          bindings={bindings}
+          activeModifiers={layer?.modifiers ?? []}
+          variant={variant}
+        />
         <div className="mt-4 flex items-center gap-4 text-xs text-zinc-400">
           <span className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded bg-emerald-600 ring-1 ring-emerald-300" />
@@ -123,6 +203,10 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
           </span>
           <span className="flex items-center gap-1.5">
             <span className="w-3 h-3 rounded bg-amber-700" /> shell command
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-3 h-3 rounded bg-blue-700 ring-1 ring-blue-300" />
+            modifier to hold
           </span>
           <span className="text-zinc-500">
             Hover a key for its full mapping.
@@ -148,9 +232,7 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
                   return (
                     <li key={mi}>
                       <span className="text-zinc-500">
-                        {mods.length
-                          ? mods.map((x) => x).join(" + ") + " + "
-                          : ""}
+                        {mods.length ? mods.join(" + ") + " + " : ""}
                       </span>
                       <span className="text-red-300">
                         {m.from?.key_code ?? "?"}
