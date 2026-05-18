@@ -337,8 +337,8 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
         </ul>
       </details>
 
-      {/* JSON source viewer */}
-      {file.raw && <JsonViewer source={file.raw} fileName={file.fileName} />}
+      {/* Source viewer (Karabiner JSON + cross-platform ports) */}
+      {file.raw && <JsonViewer file={file} />}
     </div>
   );
 }
