@@ -21,10 +21,21 @@ export default async function Home() {
               <a
                 href="https://github.com/suenot/karabiner"
                 className="underline decoration-zinc-600 hover:decoration-zinc-300"
+                target="_blank"
+                rel="noreferrer"
               >
                 suenot/karabiner
               </a>{" "}
-              complex_modifications. {files.length} files · {ruleCount} rules.
+              complex_modifications for{" "}
+              <a
+                href="https://karabiner-elements.pqrs.org/"
+                className="underline decoration-zinc-600 hover:decoration-zinc-300"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Karabiner-Elements
+              </a>
+              . {files.length} files · {ruleCount} rules.
             </p>
           </div>
           <a
