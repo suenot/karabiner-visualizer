@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { loadRuleFiles } from "@/lib/load-rules";
 import { RuleViewer } from "@/components/RuleViewer";
 
@@ -34,7 +35,9 @@ export default async function Home() {
           </a>
         </header>
 
-        <RuleViewer files={files} />
+        <Suspense fallback={<div className="text-zinc-500 text-sm">Loading…</div>}>
+          <RuleViewer files={files} />
+        </Suspense>
       </div>
     </main>
   );

@@ -1,6 +1,7 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import type { Manipulator, RuleFile } from "@/lib/karabiner";
 import { fromMods, modKey, modLabel, formatTo } from "@/lib/format";
 import { pickVariant } from "@/lib/keyboard-layout";
@@ -66,14 +67,48 @@ function collectCodes(file: RuleFile): Set<string> {
 
 export function RuleViewer({ files }: { files: RuleFile[] }) {
   const nonEmpty = useMemo(() => files.filter((f) => f.rules.length > 0), [files]);
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const slugFor = (fileName: string) => fileName.replace(/\.json$/, "");
+  const findIdxBySlug = (slug: string | null) => {
+    if (!slug) return -1;
+    return nonEmpty.findIndex((f) => slugFor(f.fileName) === slug);
+  };
+
   const defaultFileIdx = useMemo(() => {
+    const fromUrl = findIdxBySlug(searchParams.get("rule"));
+    if (fromUrl >= 0) return fromUrl;
     const firstActive = nonEmpty.findIndex(
       (f) => statusOf(f.fileName) === "active",
     );
     return firstActive >= 0 ? firstActive : 0;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nonEmpty]);
   const [activeFile, setActiveFile] = useState(defaultFileIdx);
   const [activeLayer, setActiveLayer] = useState(0);
+
+  // Sync URL when active file changes.
+  useEffect(() => {
+    const slug = nonEmpty[activeFile] ? slugFor(nonEmpty[activeFile].fileName) : null;
+    const current = searchParams.get("rule");
+    if (!slug || slug === current) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("rule", slug);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeFile]);
+
+  // React to back/forward navigation that changes ?rule= externally.
+  useEffect(() => {
+    const idx = findIdxBySlug(searchParams.get("rule"));
+    if (idx >= 0 && idx !== activeFile) {
+      setActiveFile(idx);
+      setActiveLayer(0);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   const file = nonEmpty[Math.min(activeFile, Math.max(0, nonEmpty.length - 1))];
   const layers = useMemo(() => (file ? buildLayers(file) : []), [file]);
