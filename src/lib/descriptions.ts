@@ -40,13 +40,6 @@ export const FILE_NOTES: Record<string, { headline: string; body: string }> = {
       "Чтобы не тянуться к fn+backspace, при удержании Command или Option " +
       "обычный Backspace начинает работать как forward delete.",
   },
-  "insert_custom_text_in_english_with_pbcopy.json": {
-    headline: "Quick paste of a custom prompt",
-    body:
-      "⌘L + / запускает shell-команду, которая копирует в буфер обмена " +
-      "длинный английский промпт (для AI-инструментов / memory-файлов). " +
-      "После остаётся ⌘V — текст уже готов.",
-  },
   "iso_to_ansi.json": {
     headline: "Fix ISO keyboard quirks",
     body:
