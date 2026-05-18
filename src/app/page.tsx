@@ -1,7 +1,7 @@
 import { loadRuleFiles } from "@/lib/load-rules";
 import { RuleViewer } from "@/components/RuleViewer";
 
-export const dynamic = "force-dynamic";
+export const revalidate = 600;
 
 export default async function Home() {
   const files = await loadRuleFiles();

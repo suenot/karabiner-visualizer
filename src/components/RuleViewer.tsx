@@ -88,7 +88,14 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
   if (nonEmpty.length === 0 || !file || !layer) {
     return (
       <div className="p-8 text-zinc-400">
-        No rule files found in <code>../karabiner/</code>.
+        No rule files loaded from{" "}
+        <a
+          href="https://github.com/suenot/karabiner"
+          className="underline decoration-zinc-600 hover:decoration-zinc-300"
+        >
+          suenot/karabiner
+        </a>
+        . Check the network panel for GitHub API errors.
       </div>
     );
   }
@@ -104,8 +111,7 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
           .map((f, i) => ({ f, i }))
           .filter(({ f }) => statusOf(f.fileName) === group);
         if (items.length === 0) return null;
-        const groupLabel =
-          group === "active" ? "Я использую" : "Экспериментальные";
+        const groupLabel = group === "active" ? "In use" : "Experimental";
         return (
           <div key={group} className="flex flex-col gap-1.5">
             <span
@@ -157,13 +163,13 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
                 }`}
                 title={
                   statusOf(file.fileName) === "active"
-                    ? "Я использую"
-                    : "Экспериментальный — может работать не идеально"
+                    ? "In daily use"
+                    : "Experimental — may not be polished"
                 }
               >
                 {statusOf(file.fileName) === "active"
-                  ? "я использую"
-                  : "экспериментальный"}
+                  ? "in use"
+                  : "experimental"}
               </span>
               <span className="text-xs font-mono text-zinc-500 bg-zinc-900 ring-1 ring-zinc-800 px-2 py-0.5 rounded">
                 {file.fileName}
