@@ -33,13 +33,6 @@ export const FILE_NOTES: Record<string, { headline: string; body: string }> = {
       "Удобно, когда левый ⌘ занят другими шорткатами или хочется " +
       "управлять стрелками левой рукой.",
   },
-  "delete.json": {
-    headline: "⌘/⌥ + Backspace → Forward Delete",
-    body:
-      "На MacBook нет физической клавиши forward delete (⌦). " +
-      "Чтобы не тянуться к fn+backspace, при удержании Command или Option " +
-      "обычный Backspace начинает работать как forward delete.",
-  },
   "iso_to_ansi.json": {
     headline: "Fix ISO keyboard quirks",
     body:
