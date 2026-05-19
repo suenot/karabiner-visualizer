@@ -161,27 +161,44 @@ export function Constructor() {
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Gallery presets */}
-      <div className="flex flex-col gap-1.5">
+      {/* Gallery presets — grouped */}
+      <div className="flex flex-col gap-3">
         <span className="text-[10px] uppercase tracking-wider font-semibold text-emerald-400">
           Gallery
         </span>
-        <div className="flex flex-wrap gap-1.5">
-          {GALLERY.map((g) => (
-            <button
-              key={g.id}
-              onClick={() => loadPreset(g)}
-              className={`px-3 py-1.5 rounded-md text-xs font-mono transition ring-1 ${
-                activePreset === g.id
-                  ? "bg-zinc-100 text-zinc-900 ring-zinc-200"
-                  : "bg-zinc-900 text-zinc-200 ring-zinc-800 hover:bg-zinc-800"
-              }`}
-              title={g.note}
-            >
-              {g.title}
-            </button>
-          ))}
-        </div>
+        {Object.entries(
+          GALLERY.reduce<Record<string, GalleryItem[]>>((acc, g) => {
+            const key = g.group ?? "Other";
+            (acc[key] ??= []).push(g);
+            return acc;
+          }, {}),
+        ).map(([group, items]) => (
+          <div key={group} className="flex flex-col gap-1.5">
+            <span className="text-[10px] uppercase tracking-wider text-zinc-500 font-semibold">
+              {group}
+            </span>
+            <div className="flex flex-wrap gap-1.5">
+              {items.map((g) => (
+                <button
+                  key={g.id}
+                  onClick={() => loadPreset(g)}
+                  className={`px-3 py-1.5 rounded-md text-xs font-mono transition ring-1 ${
+                    activePreset === g.id
+                      ? "bg-zinc-100 text-zinc-900 ring-zinc-200"
+                      : "bg-zinc-900 text-zinc-200 ring-zinc-800 hover:bg-zinc-800"
+                  }`}
+                  title={g.note}
+                >
+                  {g.title}
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+        <p className="text-xs text-zinc-500">
+          Hover a chip to see what it does. Click to load — your draft is
+          replaced (saved in localStorage).
+        </p>
       </div>
 
       {/* Import from URL */}
