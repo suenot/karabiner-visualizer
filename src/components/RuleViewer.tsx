@@ -2,70 +2,29 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import type { Manipulator, RuleFile } from "@/lib/karabiner";
-import { fromMods, modKey, modLabel, formatTo } from "@/lib/format";
+import type { RuleFile } from "@/lib/karabiner";
+import { fromMods, formatTo } from "@/lib/format";
 import { pickVariant } from "@/lib/keyboard-layout";
 import { notesFor, statusOf } from "@/lib/descriptions";
-import { Keyboard, type Bindings } from "./Keyboard";
+import { buildLayers, bindingsForLayer, collectKeyCodes } from "@/lib/layers";
+import { Keyboard } from "./Keyboard";
 import { JsonViewer } from "./JsonViewer";
 
-const GITHUB_RAW =
-  "https://raw.githubusercontent.com/suenot/karabiner/master";
-const GITHUB_BLOB = "https://github.com/suenot/karabiner/blob/master";
-
-type Layer = {
-  key: string;
-  label: string;
-  modifiers: string[];
-  manipulators: Manipulator[];
-};
-
-function buildLayers(file: RuleFile): Layer[] {
-  const groups = new Map<string, Layer>();
-  for (const rule of file.rules) {
-    for (const m of rule.manipulators) {
-      if (!m.from?.key_code) continue;
-      const mods = fromMods(m);
-      const k = modKey(mods);
-      if (!groups.has(k)) {
-        groups.set(k, {
-          key: k,
-          label: modLabel(mods),
-          modifiers: mods,
-          manipulators: [],
-        });
-      }
-      groups.get(k)!.manipulators.push(m);
-    }
-  }
-  return [...groups.values()].sort((a, b) => {
-    if (a.key === "_none") return -1;
-    if (b.key === "_none") return 1;
-    return a.label.localeCompare(b.label);
-  });
-}
-
-function bindingsForLayer(layer: Layer): Bindings {
-  const out: Bindings = {};
-  for (const m of layer.manipulators) {
-    const code = m.from.key_code!;
-    out[code] = formatTo(m.to);
-  }
-  return out;
-}
-
-function collectCodes(file: RuleFile): Set<string> {
-  const s = new Set<string>();
-  for (const r of file.rules) {
-    for (const m of r.manipulators) {
-      if (m.from?.key_code) s.add(m.from.key_code);
-      for (const t of m.to ?? []) if (t.key_code) s.add(t.key_code);
-    }
-  }
-  return s;
-}
-
-export function RuleViewer({ files }: { files: RuleFile[] }) {
+export function RuleViewer({
+  files,
+  repo = "suenot/karabiner",
+  branch = "master",
+  defaultRule,
+}: {
+  files: RuleFile[];
+  repo?: string;
+  branch?: string;
+  /** File name (with or without .json) to select when no ?rule= is set. */
+  defaultRule?: string | null;
+}) {
+  const GITHUB_RAW = `https://raw.githubusercontent.com/${repo}/${branch}`;
+  const GITHUB_BLOB = `https://github.com/${repo}/blob/${branch}`;
+  const REPO_URL = `https://github.com/${repo}`;
   const nonEmpty = useMemo(() => files.filter((f) => f.rules.length > 0), [files]);
   const router = useRouter();
   const pathname = usePathname();
@@ -80,12 +39,17 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
   const defaultFileIdx = useMemo(() => {
     const fromUrl = findIdxBySlug(searchParams.get("rule"));
     if (fromUrl >= 0) return fromUrl;
+    if (defaultRule) {
+      const slug = defaultRule.replace(/\.json$/, "");
+      const fromConfig = findIdxBySlug(slug);
+      if (fromConfig >= 0) return fromConfig;
+    }
     const firstActive = nonEmpty.findIndex(
       (f) => statusOf(f.fileName) === "active",
     );
     return firstActive >= 0 ? firstActive : 0;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [nonEmpty]);
+  }, [nonEmpty, defaultRule]);
   const [activeFile, setActiveFile] = useState(defaultFileIdx);
   const [activeLayer, setActiveLayer] = useState(0);
 
@@ -115,7 +79,7 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
   const layer = layers[Math.min(activeLayer, Math.max(0, layers.length - 1))];
   const bindings = useMemo(() => (layer ? bindingsForLayer(layer) : {}), [layer]);
   const variant = useMemo(
-    () => (file ? pickVariant(collectCodes(file)) : "ansi"),
+    () => (file ? pickVariant(collectKeyCodes(file)) : "ansi"),
     [file],
   );
   const notes = file ? notesFor(file.fileName) : undefined;
@@ -125,10 +89,10 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
       <div className="p-8 text-zinc-400">
         No rule files loaded from{" "}
         <a
-          href="https://github.com/suenot/karabiner"
+          href={REPO_URL}
           className="underline decoration-zinc-600 hover:decoration-zinc-300"
         >
-          suenot/karabiner
+          {repo}
         </a>
         . Check the network panel for GitHub API errors.
       </div>
@@ -338,7 +302,7 @@ export function RuleViewer({ files }: { files: RuleFile[] }) {
       </details>
 
       {/* Source viewer (Karabiner JSON + cross-platform ports) */}
-      {file.raw && <JsonViewer file={file} />}
+      {file.raw && <JsonViewer file={file} repo={repo} branch={branch} />}
     </div>
   );
 }

@@ -221,10 +221,19 @@ function highlightYaml(src: string): React.ReactNode[] {
   return out;
 }
 
-const GITHUB_RAW =
-  "https://raw.githubusercontent.com/suenot/karabiner/master";
-
-export function JsonViewer({ file }: { file: RuleFile }) {
+export function JsonViewer({
+  file,
+  repo = "suenot/karabiner",
+  branch = "master",
+  showDownload = true,
+}: {
+  file: RuleFile;
+  repo?: string;
+  branch?: string;
+  /** When false, hide the GitHub download link (e.g., for the playground). */
+  showDownload?: boolean;
+}) {
+  const GITHUB_RAW = `https://raw.githubusercontent.com/${repo}/${branch}`;
   const [target, setTarget] = useState<TargetId>("karabiner");
   const [copied, setCopied] = useState<"idle" | "ok" | "err">("idle");
 
@@ -288,14 +297,16 @@ export function JsonViewer({ file }: { file: RuleFile }) {
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <a
-            href={downloadUrl}
-            download={outFileName}
-            className="text-xs px-2 py-1 rounded-md bg-zinc-800 text-zinc-300 ring-1 ring-zinc-700 hover:bg-zinc-700"
-            title={`Download ${outFileName}`}
-          >
-            ⬇
-          </a>
+          {showDownload && (
+            <a
+              href={downloadUrl}
+              download={outFileName}
+              className="text-xs px-2 py-1 rounded-md bg-zinc-800 text-zinc-300 ring-1 ring-zinc-700 hover:bg-zinc-700"
+              title={`Download ${outFileName}`}
+            >
+              ⬇
+            </a>
+          )}
           <button
             onClick={onCopy}
             className={`text-xs font-medium px-3 py-1 rounded-md transition ring-1 ${
