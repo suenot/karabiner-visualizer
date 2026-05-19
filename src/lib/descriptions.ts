@@ -57,12 +57,16 @@ export const FILE_NOTES: Record<string, FileNote> = {
       "Enter), and the §/± key stays useful as backtick via non_us_backslash.",
   },
   "numpad.json": {
-    status: "experimental",
-    headline: "Numpad layer on Right ⌥",
+    status: "active",
+    headline: "Numpad layer on Right ⌘",
     body:
-      "MacBooks lack a numpad. Hold right Option and the right half of " +
-      "the keyboard turns into one: I/O/P = 7/8/9, K/L/; = 4/5/6, " +
-      "M/,/./ /= 0/1/2/3. Fast number entry without going to the digit row.",
+      "MacBooks lack a numpad. Hold right Command and the left half of " +
+      "the keyboard turns into one, shaped like a real numpad: " +
+      "W/E/R = 7/8/9, S/D/F = 4/5/6, X/C/V = 1/2/3, Z = 0. " +
+      "Operators sit around the cluster just like on a hardware numpad: " +
+      "Q = *, T = −, A = /, G = +, B = Enter. " +
+      "Left side stays for digits, right thumb holds the modifier — fast " +
+      "number entry without leaving the home row.",
   },
 };
 
