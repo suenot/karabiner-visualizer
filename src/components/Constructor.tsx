@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { normalizeRuleFile, type RuleFile } from "@/lib/karabiner";
-import { pickVariant } from "@/lib/keyboard-layout";
+import { pickVariant, type Variant } from "@/lib/keyboard-layout";
 import { buildLayers, bindingsForLayer, collectKeyCodes } from "@/lib/layers";
 import { Keyboard } from "./Keyboard";
 import { JsonViewer } from "./JsonViewer";
@@ -52,6 +52,9 @@ export function Constructor() {
   const [importing, setImporting] = useState<"idle" | "loading" | "error">("idle");
   const [importError, setImportError] = useState<string | null>(null);
   const [activePreset, setActivePreset] = useState<string | null>(GALLERY[0].id);
+  const [variantOverride, setVariantOverride] = useState<Variant | "auto">(
+    "auto",
+  );
 
   // Restore from localStorage on mount. setState-in-effect is intentional
   // here: localStorage is browser-only, so we can't read it during render.
@@ -80,6 +83,26 @@ export function Constructor() {
     }
   }, [source, name]);
 
+  // Restore + persist the keyboard variant override.
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem("karabiner-visualizer:variant");
+      if (v === "ansi" || v === "iso" || v === "auto") {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setVariantOverride(v);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      localStorage.setItem("karabiner-visualizer:variant", variantOverride);
+    } catch {
+      /* ignore */
+    }
+  }, [variantOverride]);
+
   const parsed = useMemo(() => parseInput(name, source), [name, source]);
 
   const layers = useMemo(
@@ -91,10 +114,12 @@ export function Constructor() {
     () => (layer ? bindingsForLayer(layer) : {}),
     [layer],
   );
-  const variant = useMemo(
+  const autoVariant = useMemo<Variant>(
     () => (parsed.ok ? pickVariant(collectKeyCodes(parsed.file)) : "ansi"),
     [parsed],
   );
+  const variant: Variant =
+    variantOverride === "auto" ? autoVariant : variantOverride;
 
   const loadPreset = (item: GalleryItem) => {
     setSource(item.source);
@@ -277,29 +302,60 @@ export function Constructor() {
 
         {/* Preview pane */}
         <div className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center gap-2 min-h-[34px]">
-            <span className="text-xs uppercase tracking-wide text-zinc-500 font-semibold">
-              Hold
-            </span>
-            {layers.length === 0 && (
-              <span className="text-xs text-zinc-500">— no layers —</span>
-            )}
-            {layers.map((l, i) => (
-              <button
-                key={l.key}
-                onClick={() => setActiveLayerIdx(i)}
-                className={`px-3 py-1.5 rounded-md text-sm font-mono transition ${
-                  i === activeLayerIdx
-                    ? "bg-emerald-500 text-zinc-950"
-                    : "bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
-                }`}
-              >
-                {l.label}
-                <span className="ml-1.5 opacity-70 text-xs">
-                  {l.manipulators.length}
-                </span>
-              </button>
-            ))}
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[34px]">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs uppercase tracking-wide text-zinc-500 font-semibold">
+                Hold
+              </span>
+              {layers.length === 0 && (
+                <span className="text-xs text-zinc-500">— no layers —</span>
+              )}
+              {layers.map((l, i) => (
+                <button
+                  key={l.key}
+                  onClick={() => setActiveLayerIdx(i)}
+                  className={`px-3 py-1.5 rounded-md text-sm font-mono transition ${
+                    i === activeLayerIdx
+                      ? "bg-emerald-500 text-zinc-950"
+                      : "bg-zinc-900 text-zinc-200 hover:bg-zinc-800"
+                  }`}
+                >
+                  {l.label}
+                  <span className="ml-1.5 opacity-70 text-xs">
+                    {l.manipulators.length}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div
+              className="inline-flex rounded-md ring-1 ring-zinc-800 overflow-hidden text-[11px] font-mono"
+              role="group"
+              aria-label="Keyboard layout"
+            >
+              {(["auto", "ansi", "iso"] as const).map((v) => {
+                const active = variantOverride === v;
+                const label =
+                  v === "auto" ? `Auto (${autoVariant.toUpperCase()})` : v.toUpperCase();
+                return (
+                  <button
+                    key={v}
+                    onClick={() => setVariantOverride(v)}
+                    className={`px-2.5 py-1.5 transition ${
+                      active
+                        ? "bg-zinc-100 text-zinc-900"
+                        : "bg-zinc-900 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-100"
+                    }`}
+                    title={
+                      v === "auto"
+                        ? "Pick ANSI or ISO based on used key codes"
+                        : `Force ${v.toUpperCase()} layout`
+                    }
+                  >
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <div className="rounded-2xl bg-zinc-950/60 ring-1 ring-zinc-800 p-5">
             <Keyboard
