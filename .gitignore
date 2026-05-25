@@ -39,3 +39,6 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# pre-build generated data (created by scripts/prefetch-rules.ts)
+/data/

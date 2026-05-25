@@ -5,12 +5,18 @@ import { normalizeRuleFile, type RuleFile } from "./karabiner";
 const DEFAULT_REPO = process.env.KARABINER_REPO ?? "suenot/karabiner";
 const DEFAULT_BRANCH = process.env.KARABINER_BRANCH ?? "master";
 const LOCAL_DIR = path.resolve(process.cwd(), "..", "karabiner");
+const PREBUILD_DIR = path.resolve(process.cwd(), "data");
 
 // Cache GitHub responses for 1h on the server. fetch() in Next.js will
 // honor the revalidate option for both edge and node runtimes.
 const REVALIDATE_SECONDS = 3600;
 
 export type RepoCoords = { repo: string; branch: string };
+
+export type VisualizerConfig = {
+  /** File name (with or without .json) of the rule that should open by default. */
+  defaultRule?: string;
+};
 
 type GhFile = { name: string; type: string; download_url: string | null };
 
@@ -67,6 +73,31 @@ async function loadFromGitHub(coords: RepoCoords): Promise<RuleFile[]> {
   return out;
 }
 
+async function loadFromPrebuilt(): Promise<RuleFile[] | null> {
+  try {
+    const txt = await fs.readFile(
+      path.join(PREBUILD_DIR, "rules-default.json"),
+      "utf8",
+    );
+    return JSON.parse(txt) as RuleFile[];
+  } catch {
+    return null;
+  }
+}
+
+async function loadConfigFromPrebuilt(): Promise<VisualizerConfig | null> {
+  try {
+    const txt = await fs.readFile(
+      path.join(PREBUILD_DIR, "config-default.json"),
+      "utf8",
+    );
+    const data = JSON.parse(txt) as VisualizerConfig | null;
+    return data && typeof data === "object" ? data : null;
+  } catch {
+    return null;
+  }
+}
+
 async function loadFromLocal(): Promise<RuleFile[] | null> {
   try {
     const entries = await fs.readdir(LOCAL_DIR);
@@ -96,27 +127,23 @@ export async function loadRuleFiles(
   const repo = coords?.repo ?? DEFAULT_REPO;
   const branch = coords?.branch ?? DEFAULT_BRANCH;
 
-  // In dev, prefer the sibling submodule only for the default repo so edits
-  // to local JSON files show up immediately while non-default repos still
-  // resolve over the network.
-  if (
-    process.env.NODE_ENV === "development" &&
-    repo === DEFAULT_REPO
-  ) {
-    const local = await loadFromLocal();
-    if (local && local.length > 0) return local;
+  if (repo === DEFAULT_REPO) {
+    // Dev: prefer local submodule so edits show up immediately.
+    if (process.env.NODE_ENV === "development") {
+      const local = await loadFromLocal();
+      if (local && local.length > 0) return local;
+    }
+    // Production: use data pre-fetched at build time (no runtime GitHub request).
+    const prebuilt = await loadFromPrebuilt();
+    if (prebuilt && prebuilt.length > 0) return prebuilt;
   }
+
   return loadFromGitHub({ repo, branch });
 }
 
 export const defaultRepoCoords: RepoCoords = {
   repo: DEFAULT_REPO,
   branch: DEFAULT_BRANCH,
-};
-
-export type VisualizerConfig = {
-  /** File name (with or without .json) of the rule that should open by default. */
-  defaultRule?: string;
 };
 
 async function loadConfigFromGitHub(
@@ -153,12 +180,15 @@ export async function loadVisualizerConfig(
 ): Promise<VisualizerConfig | null> {
   const repo = coords?.repo ?? DEFAULT_REPO;
   const branch = coords?.branch ?? DEFAULT_BRANCH;
-  if (
-    process.env.NODE_ENV === "development" &&
-    repo === DEFAULT_REPO
-  ) {
-    const local = await loadConfigFromLocal();
-    if (local) return local;
+
+  if (repo === DEFAULT_REPO) {
+    if (process.env.NODE_ENV === "development") {
+      const local = await loadConfigFromLocal();
+      if (local) return local;
+    }
+    const prebuilt = await loadConfigFromPrebuilt();
+    if (prebuilt) return prebuilt;
   }
+
   return loadConfigFromGitHub({ repo, branch });
 }
